@@ -1,0 +1,132 @@
+import pandas as pd
+import numpy as np
+
+from sklearn.preprocessing import LabelEncoder
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+
+from sklearn.ensemble import VotingClassifier
+data = pd.read_csv('/content/Iris.csv', delimiter=',')
+data.columns
+data.dtypes
+
+numerical_columns = ['SepalLengthCm', 'SepalWidthCm', 'PetalLengthCm', 'PetalWidthCm']
+
+# Calculate IQR for each numerical column
+Q1 = data[numerical_columns].quantile(0.25)
+Q3 = data[numerical_columns].quantile(0.75)
+IQR = Q3 - Q1
+
+# Identify outliers
+outliers = ((data[numerical_columns] < (Q1 - 1.5 * IQR)) | (data[numerical_columns] > (Q3 + 1.5 * IQR))).any(axis=1)
+
+# List the outliers
+outlier_rows = data[outliers]
+print("Outlier rows:")
+print(outlier_rows)
+
+# Initialize the LabelEncoder
+label_encoder = LabelEncoder()
+
+# Iterate through each column in the DataFrame
+for col in data.columns:
+    # Check if the column contains non-numeric data
+    if data[col].dtype == 'object':
+        # Apply Label Encoding
+        data[col + '_encoded'] = label_encoder.fit_transform(data[col])
+
+data.columns
+
+# Handle outliers (you can decide on the appropriate action)
+# For example, you can remove the outlier rows
+# data_cleaned = data[~outliers]
+
+# Alternatively, you can replace the outlier values with NaN
+# data_cleaned = data.copy()
+# data_cleaned.loc[outliers, numerical_columns] = np.nan
+
+# Handle outliers by replacing them with the nearest non-outlier value
+data_cleaned = data.copy()
+
+for col in numerical_columns:
+    # Calculate the mean of non-outlier values for the current column
+    non_outlier_mean = data_cleaned.loc[~outliers, col].mean()
+
+    # Replace outlier values with the nearest non-outlier value
+    data_cleaned.loc[outliers, col] = non_outlier_mean
+
+# Display the cleaned dataset or perform further analysis as needed
+print(data_cleaned.head())
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.metrics import accuracy_score
+
+# Drop original non-numeric columns
+data_cleaned.drop(columns=data_cleaned.select_dtypes(include='object').columns, inplace=True)
+
+# Split the dataset into features (X) and the target variable (y)
+X = data_cleaned.drop(columns=['Species_encoded'])  # Replace 'Target_Column' with the name of your target column
+y = data_cleaned['Species_encoded']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train the AdaBoost classifier with default settings
+adaboost_default = AdaBoostClassifier(random_state=42)
+adaboost_default.fit(X_train, y_train)
+
+# Predict the labels for the test set
+y_pred_default = adaboost_default.predict(X_test)
+
+# Calculate the accuracy
+accuracy_default = accuracy_score(y_test, y_pred_default)
+print("Accuracy with default AdaBoost classifier:", accuracy_default)
+
+# Now, let's try using different base learners and varying n_estimators
+# Define different base learners
+base_learners = [DecisionTreeClassifier(max_depth=1),  # Stump
+                 DecisionTreeClassifier(max_depth=2),  # Shallow tree
+                 DecisionTreeClassifier(max_depth=5)]  # Deeper tree
+
+# Define different values for n_estimators
+n_estimators_values = [10, 50, 100]
+
+# Iterate over each base learner and n_estimators value
+for base_learner in base_learners:
+    for n_estimators in n_estimators_values:
+        # Train the AdaBoost classifier with the current base learner and n_estimators value
+        adaboost = AdaBoostClassifier(base_estimator=base_learner, n_estimators=n_estimators, random_state=42)
+        adaboost.fit(X_train, y_train)
+
+        # Predict the labels for the test set
+        y_pred = adaboost.predict(X_test)
+
+        # Calculate the accuracy
+        accuracy = accuracy_score(y_test, y_pred)
+        print(f"Accuracy with base learner {base_learner.__class__.__name__} and n_estimators {n_estimators}: {accuracy}")
+
+# Define the base classifiers
+base_classifiers = [
+    ('adaboost_default', AdaBoostClassifier(random_state=42)),
+    ('adaboost_stump', AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=1), random_state=42)),
+    ('adaboost_shallow', AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=2), random_state=42)),
+    ('adaboost_deep', AdaBoostClassifier(base_estimator=DecisionTreeClassifier(max_depth=5), random_state=42)),
+]
+
+# Define the voting classifier
+voting_classifier = VotingClassifier(estimators=base_classifiers, voting='hard')
+
+# Train the voting classifier
+voting_classifier.fit(X_train, y_train)
+
+# Predict the labels for the test set
+y_pred_voting = voting_classifier.predict(X_test)
+
+# Calculate the accuracy
+accuracy_voting = accuracy_score(y_test, y_pred_voting)
+print("Accuracy with Voting Classifier:", accuracy_voting)
+
