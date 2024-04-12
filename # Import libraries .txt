@@ -1,0 +1,62 @@
+# Import libraries 
+# Data Manipulation
+import numpy as np 
+import pandas as pd
+from   pandas import DataFrame
+
+# Data Visualization
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Maths
+import math
+
+# Set pandas options to show more rows and columns
+pd.set_option('display.max_rows', 800)
+pd.set_option('display.max_columns', 500)
+%matplotlib inline
+
+# Read data in form of a csv file
+df = pd.read_csv("../00_Datasets/Churn_Modelling_m.csv")
+
+# First 5 rows of the dataset
+df.head()
+
+plt.hist(df.CreditScore, bins=20, rwidth=0.8)
+plt.xlabel('CreditScore')
+plt.ylabel('Count')
+plt.title('Histogram - CreditScore')
+plt.show()
+
+np.nanstd(df.CreditScore.values.tolist())
+
+np.nanmean(df.CreditScore.values)
+
+# Compute Z Score
+cr_mean = np.nanmean(df.CreditScore.values.tolist())
+cr_std = np.nanstd(df.CreditScore.values.tolist())
+
+print("Mean Credit Score is: ", cr_mean)
+print("Std Credit Score is: ", cr_std)
+df['zscore_CreditScore'] = (df.CreditScore  - cr_mean ) / cr_std
+df[["Surname", "CreditScore", "zscore_CreditScore"]].head()
+
+# Extreme values based on credit score.
+df[(df.zscore_CreditScore<-3) | (df.zscore_CreditScore>3)]
+
+Treat Outliers
+
+Find the Credit score value corresponding to z = 3 and -3. These will be the upper and lower caps.
+
+z_3 = (3 * cr_std)+ (cr_mean)
+print(z_3)
+
+z_minus3 = (cr_mean) - (3 * cr_std)
+print(z_minus3)
+## Cap Outliers 
+# df[CreditScore][(df.zscore_CreditScore<-3)] = z_minus3 
+# df[CreditScore][(df.zscore_CreditScore>3)] = z_3
+
+remove outliers:
+new_df = df[(df.zscore_CreditScore<-3) | (df.zscore_CreditScore>3)]
+new_df.head()
